@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { restaurants } from '@/lib/data'
 import { Search, MapPin, Clock, DollarSign, Star } from 'lucide-react'
 
-const cuisines = ['All', 'Pizza', 'Burgers', 'Chinese', 'Indian', 'Cafe']
+const cuisines = ['All', 'Pizza', 'Cafe', 'Indian', 'Chinese', 'Snacks', 'South Indian']
 
 export default function HomePage() {
   const [user, setUser] = useState<any>(null)
