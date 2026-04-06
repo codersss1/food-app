@@ -1,15 +1,13 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'FoodHub - Food Delivery at Your Doorstep',
-  description: 'Order delicious food from your favorite restaurants and have it delivered in minutes.',
-  generator: 'v0.app',
+  title: 'LPU Eats - Campus Food Delivery',
+  description: 'Order from Dominos, CCD, Lovely Sweets and more. Delivered to your hostel at LPU.',
 }
 
 export default function RootLayout({
@@ -21,7 +19,6 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased">
         {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )
