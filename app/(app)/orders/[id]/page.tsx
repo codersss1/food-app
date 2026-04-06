@@ -4,16 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Phone, MapPin, Clock, CheckCircle2 } from 'lucide-react'
-
-// Sample restaurants data for lookup
-const restaurantsData: Record<string, any> = {
-  '1': { id: '1', name: 'Pizza Paradise', address: 'Block 34, LPU Campus', phone: '+91 98765 43210', image_url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop' },
-  '2': { id: '2', name: 'Burger Barn', address: 'Block 32, LPU Campus', phone: '+91 98765 43211', image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop' },
-  '3': { id: '3', name: 'Dragon Wok', address: 'Block 28, LPU Campus', phone: '+91 98765 43212', image_url: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=400&h=300&fit=crop' },
-  '4': { id: '4', name: 'Spice Garden', address: 'Block 36, LPU Campus', phone: '+91 98765 43213', image_url: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&h=300&fit=crop' },
-  '5': { id: '5', name: 'Dosa Corner', address: 'Block 30, LPU Campus', phone: '+91 98765 43214', image_url: 'https://images.unsplash.com/photo-1668236543090-82eb5eaf701b?w=400&h=300&fit=crop' },
-  '6': { id: '6', name: 'Cafe Mocha', address: 'Block 25, LPU Campus', phone: '+91 98765 43215', image_url: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop' },
-}
+import { getRestaurant } from '@/lib/data'
 
 interface OrderDetails {
   id: string
@@ -59,11 +50,8 @@ export default function OrderDetailPage() {
         const foundOrder = storedOrders.find((o: OrderDetails) => o.id === orderId)
 
         if (foundOrder) {
-          // Add restaurant data
-          foundOrder.restaurants = restaurantsData[foundOrder.restaurant_id] || { 
-            name: 'Restaurant', 
-            address: 'LPU Campus',
-            phone: '+91 98765 43210'
+          foundOrder.restaurants = getRestaurant(foundOrder.restaurant_id) || { 
+            name: 'Restaurant', address: 'LPU Campus', phone: '+91 98765 43210'
           }
           setOrder(foundOrder)
         }
