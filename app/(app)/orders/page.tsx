@@ -4,16 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Clock, CheckCircle, TrendingUp, Truck } from 'lucide-react'
-
-// Sample restaurants data for lookup
-const restaurantsData: Record<string, any> = {
-  '1': { id: '1', name: 'Pizza Paradise', image_url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop' },
-  '2': { id: '2', name: 'Burger Barn', image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop' },
-  '3': { id: '3', name: 'Dragon Wok', image_url: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=400&h=300&fit=crop' },
-  '4': { id: '4', name: 'Spice Garden', image_url: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&h=300&fit=crop' },
-  '5': { id: '5', name: 'Dosa Corner', image_url: 'https://images.unsplash.com/photo-1668236543090-82eb5eaf701b?w=400&h=300&fit=crop' },
-  '6': { id: '6', name: 'Cafe Mocha', image_url: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop' },
-}
+import { getRestaurant } from '@/lib/data'
 
 interface Order {
   id: string
@@ -56,7 +47,7 @@ export default function OrdersPage() {
         // Add restaurant data to orders
         const ordersWithRestaurants = storedOrders.map((order: Order) => ({
           ...order,
-          restaurants: restaurantsData[order.restaurant_id] || { name: 'Restaurant', image_url: '' }
+          restaurants: getRestaurant(order.restaurant_id) || { name: 'Restaurant', image_url: '' }
         }))
 
         setOrders(ordersWithRestaurants)
