@@ -2,15 +2,25 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 
-declare global {
-  interface Window {
-    Razorpay: any
-  }
+// Sample restaurants data for lookup
+const restaurantsData: Record<string, any> = {
+  '1': { id: '1', name: 'Pizza Paradise', cuisine: 'Italian, Pizza', delivery_fee: 40 },
+  '2': { id: '2', name: 'Burger Barn', cuisine: 'American, Burgers', delivery_fee: 30 },
+  '3': { id: '3', name: 'Dragon Wok', cuisine: 'Chinese, Asian', delivery_fee: 35 },
+  '4': { id: '4', name: 'Spice Garden', cuisine: 'North Indian', delivery_fee: 25 },
+  '5': { id: '5', name: 'Dosa Corner', cuisine: 'South Indian', delivery_fee: 20 },
+  '6': { id: '6', name: 'Cafe Mocha', cuisine: 'Cafe, Snacks', delivery_fee: 15 },
+}
+
+// Promo codes
+const promoCodes: Record<string, { discount: number; lpuOnly: boolean }> = {
+  'WELCOME20': { discount: 20, lpuOnly: false },
+  'LPU10': { discount: 10, lpuOnly: true },
+  'FIRST50': { discount: 50, lpuOnly: false },
 }
 
 export default function CheckoutPage() {
@@ -18,7 +28,6 @@ export default function CheckoutPage() {
   const [cart, setCart] = useState<any[]>([])
   const [restaurant, setRestaurant] = useState<any>(null)
   const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -30,56 +39,31 @@ export default function CheckoutPage() {
   const [promoDiscount, setPromoDiscount] = useState(0)
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadData = () => {
       try {
-        const supabase = createClient()
-
         // Get current user
-        const {
-          data: { user: authUser },
-        } = await supabase.auth.getUser()
-
-        if (!authUser) {
+        const storedUser = localStorage.getItem('user')
+        if (!storedUser) {
           router.push('/auth/login')
           return
         }
 
-        setUser(authUser)
-
-        // Get user profile
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single()
-
-        if (profileData) {
-          setProfile(profileData)
-          setPhoneNumber(profileData.phone || '')
-          setDeliveryAddress(profileData.address || '')
-        }
+        const userData = JSON.parse(storedUser)
+        setUser(userData)
+        setPhoneNumber(userData.phone || '')
 
         // Load cart
         const savedCart = JSON.parse(localStorage.getItem('cart') || '[]')
         setCart(savedCart)
 
         if (savedCart.length > 0) {
-          // Fetch restaurant
-          const { data: restData } = await supabase
-            .from('restaurants')
-            .select('*')
-            .eq('id', savedCart[0].restaurantId)
-            .single()
-
-          if (restData) {
-            setRestaurant(restData)
+          // Get restaurant details
+          const restaurantId = savedCart[0].restaurantId
+          const restaurantData = restaurantsData[restaurantId]
+          if (restaurantData) {
+            setRestaurant(restaurantData)
           }
         }
-
-        // Load Razorpay script
-        const script = document.createElement('script')
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-        document.body.appendChild(script)
       } catch (error) {
         console.error('Error loading checkout:', error)
         setError('Failed to load checkout')
@@ -91,48 +75,24 @@ export default function CheckoutPage() {
     loadData()
   }, [router])
 
-  const validatePromoCode = async () => {
+  const validatePromoCode = () => {
     if (!promoCode.trim()) {
       setError(null)
       setPromoDiscount(0)
       return
     }
 
-    try {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('promo_codes')
-        .select('*')
-        .eq('code', promoCode.toUpperCase())
-        .eq('is_active', true)
-        .single()
+    const code = promoCode.toUpperCase()
+    const promo = promoCodes[code]
 
-      if (error) {
-        setError('Invalid promo code')
-        setPromoDiscount(0)
-        return
-      }
-
-      // Check if code is for LPU students only
-      if (data.for_lpu_students_only && !profile?.is_lpu_student) {
-        setError('This code is only for LPU students')
-        setPromoDiscount(0)
-        return
-      }
-
-      // Check expiry
-      if (data.valid_until && new Date(data.valid_until) < new Date()) {
-        setError('Promo code has expired')
-        setPromoDiscount(0)
-        return
-      }
-
-      setPromoDiscount(data.discount_percentage || 0)
-      setError(null)
-    } catch (err) {
-      setError('Error validating promo code')
+    if (!promo) {
+      setError('Invalid promo code')
       setPromoDiscount(0)
+      return
     }
+
+    setPromoDiscount(promo.discount)
+    setError(null)
   }
 
   const getSubtotal = () => {
@@ -171,70 +131,34 @@ export default function CheckoutPage() {
     setProcessing(true)
 
     try {
-      // Create order in Supabase first
-      const supabase = createClient()
-
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          restaurant_id: restaurant.id,
-          items: cart,
-          delivery_address: deliveryAddress,
-          total_amount: getTotal(),
-          order_status: 'pending_payment',
-          payment_status: 'pending',
-        })
-        .select()
-        .single()
-
-      if (orderError) throw orderError
-
-      const orderId = orderData.id
-
-      // Initialize Razorpay payment
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: Math.round(getTotal() * 100), // Amount in paise
-        currency: 'INR',
-        name: 'FoodHub LPU',
-        description: `Order #${orderId.slice(0, 8)}`,
-        prefill: {
-          name: profile?.full_name || '',
-          email: user.email,
-          contact: phoneNumber,
-        },
-        handler: async (response: any) => {
-          try {
-            // Update order with payment details
-            await supabase
-              .from('orders')
-              .update({
-                payment_status: 'completed',
-                order_status: 'confirmed',
-                razorpay_payment_id: response.razorpay_payment_id,
-              })
-              .eq('id', orderId)
-
-            // Clear cart
-            localStorage.removeItem('cart')
-
-            // Redirect to order confirmation
-            router.push(`/orders/${orderId}`)
-          } catch (err) {
-            console.error('Error updating payment:', err)
-            setError('Payment recorded but order update failed')
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            setProcessing(false)
-          },
-        },
+      // Create order in localStorage
+      const orderId = `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      
+      const newOrder = {
+        id: orderId,
+        user_id: user.id || 'demo-user',
+        restaurant_id: restaurant?.id,
+        items: cart,
+        delivery_address: deliveryAddress,
+        total_amount: getTotal(),
+        order_status: 'confirmed',
+        payment_status: 'completed',
+        created_at: new Date().toISOString(),
       }
 
-      const razorpay = new window.Razorpay(options)
-      razorpay.open()
+      // Save order
+      const existingOrders = JSON.parse(localStorage.getItem('foodhub_orders') || '[]')
+      existingOrders.unshift(newOrder)
+      localStorage.setItem('foodhub_orders', JSON.stringify(existingOrders))
+
+      // Clear cart
+      localStorage.removeItem('cart')
+
+      // Simulate payment delay
+      await new Promise(resolve => setTimeout(resolve, 1500))
+
+      // Redirect to order confirmation
+      router.push(`/orders/${orderId}`)
     } catch (err: any) {
       setError(err.message || 'Payment failed')
       setProcessing(false)
@@ -280,7 +204,7 @@ export default function CheckoutPage() {
                 <textarea
                   value={deliveryAddress}
                   onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="Enter your hostel room number and address"
+                  placeholder="Enter your hostel room number and address (e.g., Block 34, Room 405)"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                   rows={3}
                 />
@@ -309,7 +233,7 @@ export default function CheckoutPage() {
                 type="text"
                 value={promoCode}
                 onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                placeholder="Enter promo code"
+                placeholder="Enter promo code (try WELCOME20)"
                 className="flex-1"
               />
               <Button
@@ -385,7 +309,7 @@ export default function CheckoutPage() {
 
             <div className="flex justify-between font-bold text-lg text-gray-900 mb-6 pt-6 border-t border-gray-200">
               <span>Total</span>
-              <span>Rs. {getTotal()}</span>
+              <span>Rs. {getTotal().toFixed(2)}</span>
             </div>
 
             <Button
@@ -394,8 +318,12 @@ export default function CheckoutPage() {
               className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2"
             >
               {processing ? <Spinner className="w-4 h-4" /> : null}
-              {processing ? 'Processing...' : 'Pay with Razorpay'}
+              {processing ? 'Processing Payment...' : 'Pay Now'}
             </Button>
+            
+            <p className="text-xs text-gray-500 text-center mt-4">
+              This is a demo - no actual payment will be processed
+            </p>
           </div>
         </div>
       </div>

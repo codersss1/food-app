@@ -58,13 +58,16 @@ export default function SignUpPage() {
 
     try {
       // Demo signup
-      localStorage.setItem('user', JSON.stringify({ 
+      const userData = { 
+        id: `user-${Date.now()}`,
         fullName, 
         email, 
         phone, 
         name: fullName 
-      }))
-      router.push('/(app)/home')
+      }
+      localStorage.setItem('user', JSON.stringify(userData))
+      localStorage.setItem('foodhub_user', JSON.stringify(userData))
+      router.push('/home')
     } catch (err: any) {
       setError(err.message || 'Failed to sign up')
     } finally {
@@ -77,13 +80,16 @@ export default function SignUpPage() {
     setError(null)
     try {
       // Demo Google sign up
-      localStorage.setItem('user', JSON.stringify({ 
+      const userData = { 
+        id: `user-${Date.now()}`,
         fullName: 'Google User', 
         email: 'user@gmail.com', 
         name: 'Google User',
         provider: 'google' 
-      }))
-      router.push('/(app)/home')
+      }
+      localStorage.setItem('user', JSON.stringify(userData))
+      localStorage.setItem('foodhub_user', JSON.stringify(userData))
+      router.push('/home')
     } catch (err: any) {
       setError('Failed to sign up with Google')
     } finally {

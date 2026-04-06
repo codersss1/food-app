@@ -39,11 +39,28 @@ export default function AppLayout({
     }
 
     checkUser()
+
+    // Listen for storage changes to update cart count
+    const handleStorageChange = () => {
+      const cart = JSON.parse(localStorage.getItem('cart') || '[]')
+      setCartCount(cart.length)
+    }
+
+    // Also check periodically for cart changes (for same-tab updates)
+    const interval = setInterval(handleStorageChange, 1000)
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(interval)
+    }
   }, [router])
 
   const handleLogout = () => {
     try {
       localStorage.removeItem('user')
+      localStorage.removeItem('foodhub_user')
+      localStorage.removeItem('cart')
       router.push('/auth/login')
     } catch (error) {
       console.error('Error logging out:', error)

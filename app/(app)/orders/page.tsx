@@ -3,8 +3,17 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { Clock, CheckCircle, TrendingUp, Truck } from 'lucide-react'
+
+// Sample restaurants data for lookup
+const restaurantsData: Record<string, any> = {
+  '1': { id: '1', name: 'Pizza Paradise', image_url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop' },
+  '2': { id: '2', name: 'Burger Barn', image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop' },
+  '3': { id: '3', name: 'Dragon Wok', image_url: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=400&h=300&fit=crop' },
+  '4': { id: '4', name: 'Spice Garden', image_url: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&h=300&fit=crop' },
+  '5': { id: '5', name: 'Dosa Corner', image_url: 'https://images.unsplash.com/photo-1668236543090-82eb5eaf701b?w=400&h=300&fit=crop' },
+  '6': { id: '6', name: 'Cafe Mocha', image_url: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop' },
+}
 
 interface Order {
   id: string
@@ -32,28 +41,25 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchOrders = () => {
       try {
-        const supabase = createClient()
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-
-        if (!user) {
+        // Check if user is logged in
+        const storedUser = localStorage.getItem('user')
+        if (!storedUser) {
           router.push('/auth/login')
           return
         }
 
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*, restaurants(name, image_url)')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
+        // Get orders from localStorage
+        const storedOrders = JSON.parse(localStorage.getItem('foodhub_orders') || '[]')
+        
+        // Add restaurant data to orders
+        const ordersWithRestaurants = storedOrders.map((order: Order) => ({
+          ...order,
+          restaurants: restaurantsData[order.restaurant_id] || { name: 'Restaurant', image_url: '' }
+        }))
 
-        if (error) throw error
-
-        setOrders(data || [])
+        setOrders(ordersWithRestaurants)
       } catch (error) {
         console.error('Error fetching orders:', error)
       } finally {
@@ -102,7 +108,7 @@ export default function OrdersPage() {
 
           return (
             <Link key={order.id} href={`/orders/${order.id}`}>
-              <div className={`${config.bg} border border-gray-200 rounded-lg p-4 md:p-6 hover:shadow-md transition-shadow cursor-pointer`}>
+              <div className={`${config.bg} border border-gray-200 rounded-lg p-4 md:p-6 hover:shadow-md transition-shadow cursor-pointer mb-4`}>
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="text-lg md:text-xl font-bold text-gray-900">
@@ -119,7 +125,7 @@ export default function OrdersPage() {
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="space-y-1">
                     <p className="text-sm text-gray-600">
-                      <span className="font-semibold">Total Amount:</span> Rs. {order.total_amount}
+                      <span className="font-semibold">Total Amount:</span> Rs. {order.total_amount.toFixed(2)}
                     </p>
                     <p className="text-sm text-gray-600">
                       <span className="font-semibold">Payment:</span> {order.payment_status === 'completed' ? '✓ Paid' : 'Pending'}
@@ -128,7 +134,7 @@ export default function OrdersPage() {
 
                   <div className="text-sm text-gray-600">
                     {new Date(order.created_at).toLocaleDateString('en-IN', {
-                      day: 'short',
+                      day: 'numeric',
                       month: 'short',
                       year: 'numeric',
                       hour: '2-digit',

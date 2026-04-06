@@ -2,18 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { restaurantAPI } from '@/lib/api'
+import { createClient } from '@/lib/supabase/client'
 import { Search, MapPin, Clock, DollarSign, Star } from 'lucide-react'
 
 interface Restaurant {
-  _id: string
+  id: string
   name: string
   cuisine: string
   rating: number
-  deliveryTime: number
-  deliveryFee: number
-  minOrder: number
-  image: string
+  delivery_time: number
+  delivery_fee: number
+  min_order: number
+  image_url: string
 }
 
 export default function HomePage() {
@@ -23,7 +23,6 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [selectedCuisine, setSelectedCuisine] = useState('all')
-  const [hostelInfo, setHostelInfo] = useState<any>(null)
 
   const cuisines = [
     { id: 'all', name: 'All' },
@@ -43,12 +42,17 @@ export default function HomePage() {
 
     const fetchData = async () => {
       try {
-        // Fetch restaurants from backend API
-        const response = await restaurantAPI.getAll()
-        const data = response.data || response
+        // Fetch restaurants from Supabase
+        const supabase = createClient()
+        const { data, error } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('is_active', true)
+          .order('rating', { ascending: false })
         
-        setRestaurants(data)
-        setFilteredRestaurants(data)
+        if (error) throw error
+        setRestaurants(data || [])
+        setFilteredRestaurants(data || [])
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -101,12 +105,10 @@ export default function HomePage() {
             ? `Welcome back, ${user.name?.split(' ')[0] || user.fullName?.split(' ')[0]}! 👋`
             : 'Order Food Online'}
         </h1>
-        {hostelInfo && (
-          <div className="flex items-center gap-2 text-gray-600">
-            <MapPin className="w-5 h-5 text-orange-600" />
-            <span>Delivering to {hostelInfo.hostels?.name || 'your location'}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-gray-600">
+          <MapPin className="w-5 h-5 text-orange-600" />
+          <span>Delivering to LPU Campus</span>
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -145,13 +147,13 @@ export default function HomePage() {
       {/* Restaurants Grid */}
       {filteredRestaurants.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredRestaurants.map((restaurant) => (
+          {filteredRestaurants.map((restaurant: Restaurant) => (
             <Link key={restaurant.id} href={`/restaurant/${restaurant.id}`}>
               <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden cursor-pointer h-full flex flex-col">
                 {/* Restaurant Image */}
                 <div className="relative h-40 bg-gray-200 overflow-hidden">
                   <img
-                    src={restaurant.image_url || '/placeholder-restaurant.jpg'}
+                    src={restaurant.image_url || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop'}
                     alt={restaurant.name}
                     className="w-full h-full object-cover hover:scale-105 transition-transform"
                   />
@@ -177,8 +179,7 @@ export default function HomePage() {
                     <div className="flex items-center gap-2">
                       <DollarSign className="w-4 h-4 text-gray-400" />
                       <span>
-                        Min order: Rs. {restaurant.min_order} • Delivery: Rs.{' '}
-                        {restaurant.delivery_fee}
+                        Min order: Rs. {restaurant.min_order} | Delivery: Rs. {restaurant.delivery_fee}
                       </span>
                     </div>
                   </div>

@@ -2,37 +2,26 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+
+// Sample hostels
+const sampleHostels = [
+  { id: 'h1', name: 'Block 34 - Boys Hostel' },
+  { id: 'h2', name: 'Block 35 - Boys Hostel' },
+  { id: 'h3', name: 'Block 36 - Girls Hostel' },
+  { id: 'h4', name: 'Block 37 - Girls Hostel' },
+  { id: 'h5', name: 'Block 38 - International Hostel' },
+]
 
 export default function VerifyStudentPage() {
   const router = useRouter()
   const [studentId, setStudentId] = useState('')
   const [hostelId, setHostelId] = useState('')
-  const [hostels, setHostels] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-  const [hostelLoading, setHostelLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
-
-  // Load hostels on mount
-  React.useEffect(() => {
-    const loadHostels = async () => {
-      try {
-        const supabase = createClient()
-        const { data, error } = await supabase.from('hostels').select('*').eq('is_active', true)
-        if (error) throw error
-        setHostels(data || [])
-      } catch (err) {
-        console.error('Failed to load hostels:', err)
-      } finally {
-        setHostelLoading(false)
-      }
-    }
-    loadHostels()
-  }, [])
 
   const handleVerification = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,22 +40,20 @@ export default function VerifyStudentPage() {
     setLoading(true)
 
     try {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) throw new Error('User not found')
-
-      // Update user profile with student info
-      const { error } = await supabase.from('profiles').update({
-        student_id: studentId,
-        hostel_id: hostelId,
-        is_lpu_student: true,
-        is_verified: true,
-      }).eq('id', user.id)
-
-      if (error) throw error
+      // Demo verification - save to localStorage
+      const storedUser = localStorage.getItem('user')
+      if (storedUser) {
+        const userData = JSON.parse(storedUser)
+        const updatedUser = {
+          ...userData,
+          studentId,
+          hostelId,
+          isLpuStudent: true,
+          isVerified: true,
+        }
+        localStorage.setItem('user', JSON.stringify(updatedUser))
+        localStorage.setItem('foodhub_user', JSON.stringify(updatedUser))
+      }
 
       setSuccessMessage('Student verification successful!')
       setTimeout(() => {
@@ -121,25 +108,19 @@ export default function VerifyStudentPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Your Hostel
               </label>
-              {hostelLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Spinner />
-                </div>
-              ) : (
-                <select
-                  value={hostelId}
-                  onChange={(e) => setHostelId(e.target.value)}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="">Select your hostel</option>
-                  {hostels.map((hostel) => (
-                    <option key={hostel.id} value={hostel.id}>
-                      {hostel.name}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <select
+                value={hostelId}
+                onChange={(e) => setHostelId(e.target.value)}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="">Select your hostel</option>
+                {sampleHostels.map((hostel) => (
+                  <option key={hostel.id} value={hostel.id}>
+                    {hostel.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Error Message */}
@@ -159,7 +140,7 @@ export default function VerifyStudentPage() {
             {/* Verify Button */}
             <Button
               type="submit"
-              disabled={loading || hostelLoading}
+              disabled={loading}
               className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2"
             >
               {loading ? <Spinner className="w-4 h-4" /> : null}

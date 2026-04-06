@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { Trash2, Plus, Minus } from 'lucide-react'
 
 interface CartItem {
@@ -13,28 +12,34 @@ interface CartItem {
   restaurantId: string
 }
 
+// Sample restaurants data for lookup
+const restaurantsData: Record<string, any> = {
+  '1': { id: '1', name: 'Pizza Paradise', cuisine: 'Italian, Pizza', delivery_fee: 40 },
+  '2': { id: '2', name: 'Burger Barn', cuisine: 'American, Burgers', delivery_fee: 30 },
+  '3': { id: '3', name: 'Dragon Wok', cuisine: 'Chinese, Asian', delivery_fee: 35 },
+  '4': { id: '4', name: 'Spice Garden', cuisine: 'North Indian', delivery_fee: 25 },
+  '5': { id: '5', name: 'Dosa Corner', cuisine: 'South Indian', delivery_fee: 20 },
+  '6': { id: '6', name: 'Cafe Mocha', cuisine: 'Cafe, Snacks', delivery_fee: 15 },
+}
+
 export default function CartPage() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [restaurant, setRestaurant] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const loadCart = async () => {
+    const loadCart = () => {
       try {
         const savedCart = JSON.parse(localStorage.getItem('cart') || '[]')
         setCart(savedCart)
 
         if (savedCart.length > 0) {
-          // Fetch restaurant details for delivery fee
-          const supabase = createClient()
-          const { data, error } = await supabase
-            .from('restaurants')
-            .select('*')
-            .eq('id', savedCart[0].restaurantId)
-            .single()
-
-          if (error) throw error
-          setRestaurant(data)
+          // Get restaurant details from local data
+          const restaurantId = savedCart[0].restaurantId
+          const restaurantData = restaurantsData[restaurantId]
+          if (restaurantData) {
+            setRestaurant(restaurantData)
+          }
         }
       } catch (error) {
         console.error('Error loading cart:', error)

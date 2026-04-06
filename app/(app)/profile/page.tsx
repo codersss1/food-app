@@ -2,17 +2,23 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { CheckCircle2, Edit2, Save, X } from 'lucide-react'
 
+// Sample hostels
+const sampleHostels = [
+  { id: 'h1', name: 'Block 34 - Boys Hostel' },
+  { id: 'h2', name: 'Block 35 - Boys Hostel' },
+  { id: 'h3', name: 'Block 36 - Girls Hostel' },
+  { id: 'h4', name: 'Block 37 - Girls Hostel' },
+  { id: 'h5', name: 'Block 38 - International Hostel' },
+]
+
 export default function ProfilePage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
-  const [hostels, setHostels] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -26,40 +32,21 @@ export default function ProfilePage() {
   const [hostelId, setHostelId] = useState('')
 
   useEffect(() => {
-    const loadProfile = async () => {
+    const loadProfile = () => {
       try {
-        const supabase = createClient()
-
-        // Get current user
-        const {
-          data: { user: authUser },
-        } = await supabase.auth.getUser()
-
-        if (!authUser) {
+        // Get current user from localStorage
+        const storedUser = localStorage.getItem('user')
+        if (!storedUser) {
           router.push('/auth/login')
           return
         }
 
-        setUser(authUser)
-
-        // Get user profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single()
-
-        if (profileError) throw profileError
-
-        setProfile(profileData)
-        setFullName(profileData.full_name || '')
-        setPhone(profileData.phone || '')
-        setAddress(profileData.address || '')
-        setHostelId(profileData.hostel_id || '')
-
-        // Get hostels
-        const { data: hostelData } = await supabase.from('hostels').select('*').eq('is_active', true)
-        setHostels(hostelData || [])
+        const userData = JSON.parse(storedUser)
+        setUser(userData)
+        setFullName(userData.fullName || userData.name || '')
+        setPhone(userData.phone || '')
+        setAddress(userData.address || '')
+        setHostelId(userData.hostelId || '')
       } catch (error) {
         console.error('Error loading profile:', error)
         setError('Failed to load profile')
@@ -71,7 +58,7 @@ export default function ProfilePage() {
     loadProfile()
   }, [router])
 
-  const handleSave = async () => {
+  const handleSave = () => {
     setError(null)
     setSuccess(null)
 
@@ -88,18 +75,18 @@ export default function ProfilePage() {
     setSaving(true)
 
     try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: fullName,
-          phone: phone,
-          address: address,
-          hostel_id: hostelId || null,
-        })
-        .eq('id', user.id)
-
-      if (error) throw error
+      // Update user in localStorage
+      const updatedUser = {
+        ...user,
+        fullName,
+        name: fullName,
+        phone,
+        address,
+        hostelId,
+      }
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      localStorage.setItem('foodhub_user', JSON.stringify(updatedUser))
+      setUser(updatedUser)
 
       setSuccess('Profile updated successfully!')
       setEditing(false)
@@ -112,10 +99,10 @@ export default function ProfilePage() {
   }
 
   const handleCancel = () => {
-    setFullName(profile?.full_name || '')
-    setPhone(profile?.phone || '')
-    setAddress(profile?.address || '')
-    setHostelId(profile?.hostel_id || '')
+    setFullName(user?.fullName || user?.name || '')
+    setPhone(user?.phone || '')
+    setAddress(user?.address || '')
+    setHostelId(user?.hostelId || '')
     setEditing(false)
     setError(null)
   }
@@ -175,7 +162,7 @@ export default function ProfilePage() {
                   Email Address
                 </label>
                 <div className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-700 font-semibold">
-                  {user?.email}
+                  {user?.email || 'Not set'}
                 </div>
               </div>
 
@@ -190,6 +177,7 @@ export default function ProfilePage() {
                   onChange={(e) => setFullName(e.target.value)}
                   disabled={!editing}
                   className="w-full"
+                  placeholder="Enter your full name"
                 />
               </div>
 
@@ -204,6 +192,7 @@ export default function ProfilePage() {
                   onChange={(e) => setPhone(e.target.value)}
                   disabled={!editing}
                   className="w-full"
+                  placeholder="+91 98765 43210"
                 />
               </div>
 
@@ -218,6 +207,7 @@ export default function ProfilePage() {
                   disabled={!editing}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:bg-gray-100 disabled:border-gray-300"
                   rows={3}
+                  placeholder="Enter your hostel room number and address"
                 />
               </div>
 
@@ -233,7 +223,7 @@ export default function ProfilePage() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                   >
                     <option value="">Select hostel</option>
-                    {hostels.map((hostel) => (
+                    {sampleHostels.map((hostel) => (
                       <option key={hostel.id} value={hostel.id}>
                         {hostel.name}
                       </option>
@@ -242,29 +232,11 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Verification Status */}
+              {/* Demo Notice */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-gray-600 mb-2">
-                  <span className="font-semibold">Verification Status:</span>
+                <p className="text-sm text-blue-700">
+                  This is a demo application. Your profile data is stored locally in your browser.
                 </p>
-                <div className="flex items-center gap-2">
-                  {profile?.is_lpu_student ? (
-                    <>
-                      <CheckCircle2 className="w-5 h-5 text-green-600" />
-                      <span className="font-semibold text-green-700">LPU Student Verified</span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-5 h-5 rounded-full border-2 border-gray-400"></div>
-                      <span className="text-gray-700">Not verified as LPU student</span>
-                    </>
-                  )}
-                </div>
-                {profile?.student_id && (
-                  <p className="text-sm text-gray-600 mt-2">
-                    Student ID: <span className="font-semibold">{profile.student_id}</span>
-                  </p>
-                )}
               </div>
 
               {/* Action Buttons */}
@@ -296,12 +268,9 @@ export default function ProfilePage() {
         <div className="lg:col-span-1 space-y-6">
           {/* Account Info */}
           <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-6 shadow-lg">
-            <p className="text-sm text-gray-600 mb-2">Account Member Since</p>
+            <p className="text-sm text-gray-600 mb-2">Welcome to FoodHub</p>
             <p className="text-2xl font-bold text-gray-900">
-              {new Date(profile?.created_at).toLocaleDateString('en-IN', {
-                month: 'short',
-                year: 'numeric',
-              })}
+              {fullName || 'User'}
             </p>
           </div>
 
@@ -320,6 +289,12 @@ export default function ProfilePage() {
                 className="block text-orange-600 hover:text-orange-700 font-semibold text-sm"
               >
                 Browse Restaurants
+              </a>
+              <a
+                href="/cart"
+                className="block text-orange-600 hover:text-orange-700 font-semibold text-sm"
+              >
+                View Cart
               </a>
             </div>
           </div>

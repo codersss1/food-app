@@ -2,28 +2,30 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { authAPI } from '@/lib/api'
 
 export default function VerifyEmailPage() {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
   const handleResendOTP = async () => {
     setLoading(true)
     try {
-      const email = localStorage.getItem('tempEmail') || ''
-      if (!email) {
-        setMessage('Please sign up first')
-        return
-      }
-      await authAPI.resendOTP(email)
-      setMessage('OTP resent to your email')
+      // Demo: simulate resending
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setMessage('Verification email resent successfully!')
     } catch (err: any) {
-      setMessage(err.message || 'Failed to resend OTP')
+      setMessage(err.message || 'Failed to resend')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleContinue = () => {
+    // For demo, go directly to home
+    router.push('/home')
   }
 
   return (
@@ -40,8 +42,8 @@ export default function VerifyEmailPage() {
         <div className="bg-white rounded-2xl shadow-lg p-8 border border-orange-100">
           <div className="space-y-6">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
-              <p className="font-semibold mb-1">Verification email sent</p>
-              <p>We&apos;ve sent a confirmation link to your email address. Click the link to verify your account.</p>
+              <p className="font-semibold mb-1">Demo Mode</p>
+              <p>In a real app, you would receive an email. For now, click Continue to proceed.</p>
             </div>
 
             <div className="space-y-3 text-sm text-gray-600">
@@ -59,6 +61,14 @@ export default function VerifyEmailPage() {
                 {message}
               </div>
             )}
+
+            <Button
+              type="button"
+              onClick={handleContinue}
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 rounded-lg"
+            >
+              Continue to App
+            </Button>
 
             <div className="border-t border-gray-200 pt-6">
               <p className="text-sm text-gray-600 mb-4">Didn&apos;t receive the email?</p>

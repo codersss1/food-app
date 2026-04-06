@@ -3,8 +3,17 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { Phone, MapPin, Clock, CheckCircle2 } from 'lucide-react'
+
+// Sample restaurants data for lookup
+const restaurantsData: Record<string, any> = {
+  '1': { id: '1', name: 'Pizza Paradise', address: 'Block 34, LPU Campus', phone: '+91 98765 43210', image_url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop' },
+  '2': { id: '2', name: 'Burger Barn', address: 'Block 32, LPU Campus', phone: '+91 98765 43211', image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop' },
+  '3': { id: '3', name: 'Dragon Wok', address: 'Block 28, LPU Campus', phone: '+91 98765 43212', image_url: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=400&h=300&fit=crop' },
+  '4': { id: '4', name: 'Spice Garden', address: 'Block 36, LPU Campus', phone: '+91 98765 43213', image_url: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&h=300&fit=crop' },
+  '5': { id: '5', name: 'Dosa Corner', address: 'Block 30, LPU Campus', phone: '+91 98765 43214', image_url: 'https://images.unsplash.com/photo-1668236543090-82eb5eaf701b?w=400&h=300&fit=crop' },
+  '6': { id: '6', name: 'Cafe Mocha', address: 'Block 25, LPU Campus', phone: '+91 98765 43215', image_url: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop' },
+}
 
 interface OrderDetails {
   id: string
@@ -34,51 +43,29 @@ export default function OrderDetailPage() {
 
   const [order, setOrder] = useState<OrderDetails | null>(null)
   const [loading, setLoading] = useState(true)
-  const [realtimeUpdates, setRealtimeUpdates] = useState(false)
 
   useEffect(() => {
-    const fetchOrder = async () => {
+    const fetchOrder = () => {
       try {
-        const supabase = createClient()
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-
-        if (!user) {
+        // Check if user is logged in
+        const storedUser = localStorage.getItem('user')
+        if (!storedUser) {
           router.push('/auth/login')
           return
         }
 
-        // Fetch order
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*, restaurants(name, phone, address, image_url)')
-          .eq('id', orderId)
-          .eq('user_id', user.id)
-          .single()
+        // Get orders from localStorage
+        const storedOrders = JSON.parse(localStorage.getItem('foodhub_orders') || '[]')
+        const foundOrder = storedOrders.find((o: OrderDetails) => o.id === orderId)
 
-        if (error) throw error
-        setOrder(data)
-
-        // Subscribe to real-time updates
-        const subscription = supabase
-          .channel(`order:${orderId}`)
-          .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
-            (payload) => {
-              setOrder((prev) =>
-                prev ? { ...prev, ...payload.new } : null
-              )
-              setRealtimeUpdates(true)
-              setTimeout(() => setRealtimeUpdates(false), 2000)
-            }
-          )
-          .subscribe()
-
-        return () => {
-          subscription.unsubscribe()
+        if (foundOrder) {
+          // Add restaurant data
+          foundOrder.restaurants = restaurantsData[foundOrder.restaurant_id] || { 
+            name: 'Restaurant', 
+            address: 'LPU Campus',
+            phone: '+91 98765 43210'
+          }
+          setOrder(foundOrder)
         }
       } catch (error) {
         console.error('Error fetching order:', error)
@@ -116,7 +103,12 @@ export default function OrderDetailPage() {
     return (
       <div className="p-4 md:p-8">
         <div className="text-center py-12">
-          <p className="text-gray-500">Order not found</p>
+          <p className="text-gray-500 mb-4">Order not found</p>
+          <Link href="/orders">
+            <button className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-6 rounded-lg">
+              View All Orders
+            </button>
+          </Link>
         </div>
       </div>
     )
@@ -129,12 +121,6 @@ export default function OrderDetailPage() {
       <Link href="/orders" className="text-orange-600 hover:text-orange-700 font-semibold mb-6 inline-block">
         ← Back to Orders
       </Link>
-
-      {realtimeUpdates && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6 text-sm">
-          Order updated in real-time
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
@@ -222,7 +208,7 @@ export default function OrderDetailPage() {
               </div>
               <div className="flex justify-between font-bold text-lg text-gray-900 pt-2 border-t border-gray-200">
                 <span>Total Amount</span>
-                <span>Rs. {order.total_amount}</span>
+                <span>Rs. {order.total_amount.toFixed(2)}</span>
               </div>
             </div>
           </div>

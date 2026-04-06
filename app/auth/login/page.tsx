@@ -23,8 +23,18 @@ export default function LoginPage() {
     try {
       // Demo login - shows the UI without dependencies
       if (email && password) {
-        localStorage.setItem('user', JSON.stringify({ email, name: email.split('@')[0] }))
-        router.push('/(app)/home')
+        localStorage.setItem('user', JSON.stringify({ 
+          id: `user-${Date.now()}`,
+          email, 
+          name: email.split('@')[0],
+          fullName: email.split('@')[0]
+        }))
+        localStorage.setItem('foodhub_user', JSON.stringify({ 
+          id: `user-${Date.now()}`,
+          email, 
+          name: email.split('@')[0] 
+        }))
+        router.push('/home')
       } else {
         setError('Please enter email and password')
       }
@@ -40,8 +50,16 @@ export default function LoginPage() {
     setError(null)
     try {
       // Demo Google sign in
-      localStorage.setItem('user', JSON.stringify({ email: 'student@lpu.in', name: 'Student', provider: 'google' }))
-      router.push('/(app)/home')
+      const userData = { 
+        id: `user-${Date.now()}`,
+        email: 'student@lpu.in', 
+        name: 'Student', 
+        fullName: 'Student User',
+        provider: 'google' 
+      }
+      localStorage.setItem('user', JSON.stringify(userData))
+      localStorage.setItem('foodhub_user', JSON.stringify(userData))
+      router.push('/home')
     } catch (err: any) {
       setError('Failed to sign in with Google')
     } finally {
